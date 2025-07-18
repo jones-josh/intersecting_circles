@@ -1,6 +1,7 @@
 import csv
 from dataclasses import dataclass
 import manim as manim
+from typing import Generator, TextIO
 
 
 @dataclass
@@ -14,22 +15,37 @@ CircleGroup = list[Circle]
 CIRCLES_PER_GROUP = 4
 
 
-def removeCsvComments(csvFile):
+def removeCsvComments(csvFile: TextIO) -> Generator:
     for row in csvFile:
         raw = row.split("#")[0].strip()
         if raw:
             yield raw
 
 
-def loadCircleGroups(csvPath):
+def loadCircleGroups(csvPath: str) -> CircleGroup:
+    ungrouped_circles: list[Circle] = []
     with open(csvPath) as f:
         reader = csv.reader(removeCsvComments(f))
         for row in reader:
-            print(row)
+            assert len(row) == 3
+            ungrouped_circles.append(
+                Circle((float(row[0]), float(row[1])), float(row[2]))
+            )
+
+    assert len(ungrouped_circles) % CIRCLES_PER_GROUP == 0
+
+    groups = []
+    for i in range(0, len(ungrouped_circles), CIRCLES_PER_GROUP):
+        group = []
+        for j in range(CIRCLES_PER_GROUP):
+            group.append(ungrouped_circles[i + j])
+        groups.append(group)
+
+    return groups
 
 
 if __name__ == "__main__":
-    loadCircleGroups("circles.csv")
+    print(loadCircleGroups("circles.csv"))
 
 
 class DefaultTemplate(manim.Scene):
