@@ -49,31 +49,27 @@ def loadCircleGroups(csvPath: str) -> list[CircleGroup]:
 def normalizeCircleGroups(groups: list[CircleGroup]) -> list[CircleGroup]:
     normalizedGroups: list[CircleGroup] = []
     for circleGroup in groups:
-        minX: float = groups[0][0].origin[0]
-        maxX: float = 0
-        minY: float = groups[0][0].origin[1]
-        maxY: float = 0
-        for circle in circleGroup:
-            [x, y] = circle.origin
-            r = circle.radius
-            if x - r < minX:
-                minX = x - r
-            if x + r > maxX:
-                maxX = x + r
-            if y - r < minY:
-                minY = y - r
-            if y + r > maxY:
-                maxY = y + r
+        minX: float = min([c.origin[0] - c.radius for c in circleGroup])
+        maxX: float = max([c.origin[0] + c.radius for c in circleGroup])
+        minY: float = min([c.origin[1] - c.radius for c in circleGroup])
+        maxY: float = max([c.origin[1] + c.radius for c in circleGroup])
 
-        scale: float = max(maxX - minX, maxY - minY)
+        groupWidth = maxX - minX
+        groupHeight = maxY - minY
+        scale: float = max(groupWidth, groupHeight)
+        print(f"SCALE: {scale}")
 
         normalizedGroup: CircleGroup = []
         for circle in circleGroup:
             [x, y] = circle.origin
             r = circle.radius
-            normalizedGroup.append(
-                Circle(((x - minX) / scale, (y - minY) / scale), r / scale)
-            )
+            origin_x = (x - minX) / scale
+            origin_x += (1 - groupWidth / scale) / 2  # center horizontally
+            origin_y = (y - minY) / scale
+            origin_y += (1 - groupHeight / scale) / 2  # center vertically
+            normalizedGroup.append(Circle((origin_x, origin_y), r / scale))
+            assert x - minX > 0
+            assert scale > 0
         normalizedGroups.append(normalizedGroup)
 
     return normalizedGroups
@@ -86,9 +82,38 @@ if __name__ == "__main__":
 class DefaultTemplate(manim.Scene):
     def construct(self):
         normalizedCircles = normalizeCircleGroups(loadCircleGroups("circles.csv"))
+        for group in loadCircleGroups("circles.csv"):
+            for c in group:
+                print(f"(x-{c.origin[0]})^2 + (y-{c.origin[1]})^2 = {c.radius}^2")
 
-        circles = []
-        for c in normalizedCircles[0]:
-            circles.append(manim.Circle(c.radius).move_to([*c.origin, 0]))
+        print("------------")
+        oldCircles = normalizedCircles[-1]
 
-        self.play([manim.Create(c) for c in circles])
+        drawCircleGroups = []
+        for group in normalizedCircles:
+            drawCircles = []
+            for c in group:
+                drawCircles.append(manim.Circle(c.radius).move_to([*c.origin, 0]))
+                print(f"(x-{c.origin[0]})^2 + (y-{c.origin[1]})^2 = {c.radius}^2")
+            drawCircleGroups.append(drawCircles)
+
+        # currentGroup = drawCircleGroups[-1]
+        # for nextGroup in drawCircleGroups:
+        #     animations = []
+        #     for currentCircle, nextCircle in zip(currentGroup, nextGroup):
+        #         animations.append(manim.Transform(currentCircle, nextCircle))
+        #     self.play(animations)
+
+        # for nextGroup in normalizedCircles:
+        #     animations = []
+        #     for c, nextCircle in zip(drawCircles, nextGroup, oldCircles):
+        #         animations.append(c.animate.move_to([*nextCircle.origin, 0]))
+        #         print(f"move_to {[*nextCircle.origin, 0]}")
+        #         # animations.append(c.animate.set_radius(nextCircle.radius))
+        #         print(f"set_radius {nextCircle.radius}")
+        #     self.play(*animations)
+        #     oldCircles = nextGroup
+
+        for group in drawCircleGroups:
+            self.play([manim.Create(c) for c in group])
+            self.play([manim.Uncreate(c) for c in group])
