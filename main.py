@@ -142,7 +142,7 @@ class DefaultTemplate(manim.Scene):
     def construct(self):
         scale: float = 10
         normalizedCircles = normalizeCircleGroups(
-            loadCircleGroups("circles.csv"), scale=scale
+            loadCircleGroups("res/4-connected-circles.csv"), scale=scale
         )
 
         optimizedCircles = []
@@ -165,6 +165,8 @@ class DefaultTemplate(manim.Scene):
         for nextGroup in drawCircleGroups:
             animations = []
             for currentCircle, nextCircle in zip(renderedCircles, nextGroup):
-                animations.append(manim.Transform(currentCircle, nextCircle))
+                animations.append(
+                    manim.Transform(currentCircle, nextCircle, run_time=0.6)
+                )
             self.play(*animations)
             self.play(manim.Wait(0.2))
