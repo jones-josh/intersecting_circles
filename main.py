@@ -12,7 +12,6 @@ class Circle:
     radius: float
 
     def toManim(self: Circle, color: ParsableManimColor = manim.WHITE) -> manim.Circle:
-        print(self)
         return manim.Circle(self.radius, color=color).move_to([*self.origin, 0])
 
     def distance(self: Circle, other: Circle) -> float:
@@ -25,8 +24,6 @@ class Circle:
 
 CircleGroup = list[Circle]
 
-CIRCLES_PER_GROUP = 4
-
 
 def removeCsvComments(csvFile: TextIO) -> Generator:
     for row in csvFile:
@@ -35,7 +32,7 @@ def removeCsvComments(csvFile: TextIO) -> Generator:
             yield raw
 
 
-def loadCircleGroups(csvPath: str) -> list[CircleGroup]:
+def loadCircleGroups(csvPath: str, circlesPerGroup: int) -> list[CircleGroup]:
     ungroupedCircles: list[Circle] = []
     with open(csvPath) as f:
         reader = csv.reader(removeCsvComments(f))
@@ -45,12 +42,12 @@ def loadCircleGroups(csvPath: str) -> list[CircleGroup]:
                 Circle((float(row[0]), float(row[1])), float(row[2]))
             )
 
-    assert len(ungroupedCircles) % CIRCLES_PER_GROUP == 0
+    assert len(ungroupedCircles) % circlesPerGroup == 0
 
     groups = []
-    for i in range(0, len(ungroupedCircles), CIRCLES_PER_GROUP):
+    for i in range(0, len(ungroupedCircles), circlesPerGroup):
         group = []
-        for j in range(CIRCLES_PER_GROUP):
+        for j in range(circlesPerGroup):
             group.append(ungroupedCircles[i + j])
         groups.append(group)
 
@@ -138,35 +135,37 @@ def bestTransform(circlesA: CircleGroup, circlesB: CircleGroup) -> CircleGroup:
     return [circlesB[i] for i in indexPermutations[bestPermutationIdx]]
 
 
-class DefaultTemplate(manim.Scene):
+def constructScene(scene: manim.Scene, circleCsvPath: string, circlesPerGroup: int):
+    scale: float = 10
+    normalizedCircles = normalizeCircleGroups(
+        loadCircleGroups(circleCsvPath, circlesPerGroup), scale=scale
+    )
+
+    optimizedCircles = []
+    for c in normalizedCircles:
+        if not optimizedCircles:
+            optimizedCircles.append(c)
+        else:
+            optimizedCircles.append(bestTransform(optimizedCircles[-1], c))
+
+    # start with the last entry to loop seamlessly
+    renderedCircles = [c.toManim() for c in optimizedCircles[-1]]
+
+    drawCircleGroups = []
+    for group in optimizedCircles:
+        drawCircles = []
+        for c in group:
+            drawCircles.append(c.toManim())
+        drawCircleGroups.append(drawCircles)
+
+    for nextGroup in drawCircleGroups:
+        animations = []
+        for currentCircle, nextCircle in zip(renderedCircles, nextGroup):
+            animations.append(manim.Transform(currentCircle, nextCircle, run_time=0.6))
+        scene.play(*animations)
+        scene.play(manim.Wait(0.2))
+
+
+class N4_connected(manim.Scene):
     def construct(self):
-        scale: float = 10
-        normalizedCircles = normalizeCircleGroups(
-            loadCircleGroups("res/4-connected-circles.csv"), scale=scale
-        )
-
-        optimizedCircles = []
-        for c in normalizedCircles:
-            if not optimizedCircles:
-                optimizedCircles.append(c)
-            else:
-                optimizedCircles.append(bestTransform(optimizedCircles[-1], c))
-
-        # start with the last entry to loop seamlessly
-        renderedCircles = [c.toManim() for c in optimizedCircles[-1]]
-
-        drawCircleGroups = []
-        for group in optimizedCircles:
-            drawCircles = []
-            for c in group:
-                drawCircles.append(c.toManim())
-            drawCircleGroups.append(drawCircles)
-
-        for nextGroup in drawCircleGroups:
-            animations = []
-            for currentCircle, nextCircle in zip(renderedCircles, nextGroup):
-                animations.append(
-                    manim.Transform(currentCircle, nextCircle, run_time=0.6)
-                )
-            self.play(*animations)
-            self.play(manim.Wait(0.2))
+        constructScene(self, "res/N4-connected.csv", 4)
