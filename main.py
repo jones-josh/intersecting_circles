@@ -44,7 +44,7 @@ def loadCircleGroups(csvPath: str) -> list[CircleGroup]:
     return groups
 
 
-# forces all circles to exist in [0, 1] in x and y, translates and scales
+# forces all circles to exist in [-0.5, 0.5] in x and y, translates and scales
 # each group individually
 def normalizeCircleGroups(groups: list[CircleGroup]) -> list[CircleGroup]:
     normalizedGroups: list[CircleGroup] = []
@@ -65,11 +65,11 @@ def normalizeCircleGroups(groups: list[CircleGroup]) -> list[CircleGroup]:
             r = circle.radius
             origin_x = (x - minX) / scale
             origin_x += (1 - groupWidth / scale) / 2  # center horizontally
+            origin_x -= 0.5 # center around (0, 0)
             origin_y = (y - minY) / scale
             origin_y += (1 - groupHeight / scale) / 2  # center vertically
+            origin_y -= 0.5 # center around (0, 0)
             normalizedGroup.append(Circle((origin_x, origin_y), r / scale))
-            assert x - minX > 0
-            assert scale > 0
         normalizedGroups.append(normalizedGroup)
 
     return normalizedGroups
@@ -113,6 +113,7 @@ class DefaultTemplate(manim.Scene):
         #         print(f"set_radius {nextCircle.radius}")
         #     self.play(*animations)
         #     oldCircles = nextGroup
+
 
         for group in drawCircleGroups:
             self.play([manim.Create(c) for c in group])
