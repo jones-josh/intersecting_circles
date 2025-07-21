@@ -54,7 +54,7 @@ def loadCircleGroups(csvPath: str, circlesPerGroup: int) -> list[CircleGroup]:
     return groups
 
 
-# forces all circles to exist in [-0.5, 0.5] in x and y, translates and scales
+# forces all circles to exist in [-scale/2, scale/2] in x and y, translates and scales
 # each group individually
 def normalizeCircleGroups(
     groups: list[CircleGroup], scale: float = 1
