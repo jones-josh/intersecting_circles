@@ -168,4 +168,8 @@ def constructScene(scene: manim.Scene, circleCsvPath: string, circlesPerGroup: i
 
 class N4_connected(manim.Scene):
     def construct(self):
-        constructScene(self, "res/N4-connected.csv", 4)
+        constructScene(self, "res/n4-connected.csv", 4)
+
+class N4_all(manim.Scene):
+    def construct(self):
+        constructScene(self, "res/n4-all.csv", 4)
