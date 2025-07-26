@@ -11,14 +11,14 @@ class Circle:
     origin: tuple[float, float]
     radius: float
 
-    def toManim(self: Circle, color: ParsableManimColor = manim.WHITE) -> manim.Circle:
+    def toManim(self: Circle, color: manim.ParsableManimColor = manim.WHITE) -> manim.Circle:
         return manim.Circle(self.radius, color=color).move_to([*self.origin, 0])
 
     def distance(self: Circle, other: Circle) -> float:
         return (
             abs(self.origin[0] - other.origin[0])
             + abs(self.origin[1] - other.origin[1])
-            + pow(self.radius - other.radius, 4)
+            + pow(self.radius - other.radius, 2)
         )
 
 
@@ -90,9 +90,22 @@ def normalizeCircleGroups(
 
     return normalizedGroups
 
+def bestGroupAndTransform(startingCircles: CircleGroup, remainingGroups: list[CircleGroup]) -> tuple[int, CircleGroup]:
+    bestDistance = None
+    bestGroupIdx = None
+    bestPermutation = None
+    for i, g in enumerate(remainingGroups):
+        distance, permutation = bestTransform(startingCircles, g)
+        if bestDistance is None or distance < bestDistance:
+            bestDistance = distance
+            bestGroupIdx = i
+            bestPermutation = permutation
+
+    return bestGroupIdx, bestPermutation
+
 
 # returns a permutation of circlesB that is invokes the 'easiest' transition target from circlesA
-def bestTransform(circlesA: CircleGroup, circlesB: CircleGroup) -> CircleGroup:
+def bestTransform(circlesA: CircleGroup, circlesB: CircleGroup) -> tuple[float, CircleGroup]:
     assert len(circlesA) == len(circlesB)
 
     indexPermutations: list[int] = []
@@ -121,35 +134,36 @@ def bestTransform(circlesA: CircleGroup, circlesB: CircleGroup) -> CircleGroup:
             c[i] = 0
             i += 1
 
-    bestScore = -1
-    bestPermutationIdx = -1
+    bestDistance = None
+    bestPermutationIdx = None
     for permutationIdx, permutation in enumerate(indexPermutations):
-        score = 0
+        distance = 0
         permutedCircles = [circlesB[i] for i in permutation]
         for circleA, circleB in zip(circlesA, permutedCircles):
-            score += circleA.distance(circleB)
-        if bestScore == -1 or score < bestScore:
-            bestScore = score
+            distance += circleA.distance(circleB)
+        if bestDistance is None or distance < bestDistance:
+            bestDistance = distance
             bestPermutationIdx = permutationIdx
 
-    return [circlesB[i] for i in indexPermutations[bestPermutationIdx]]
+    return bestDistance, [circlesB[i] for i in indexPermutations[bestPermutationIdx]]
 
 
-def constructScene(scene: manim.Scene, circleCsvPath: string, circlesPerGroup: int):
+def constructScene(scene: manim.Scene, circleCsvPath: string, circlesPerGroup: int, startingGroup = 0):
     scale: float = 10
     normalizedCircles = normalizeCircleGroups(
         loadCircleGroups(circleCsvPath, circlesPerGroup), scale=scale
     )
 
-    optimizedCircles = []
-    for c in normalizedCircles:
-        if not optimizedCircles:
-            optimizedCircles.append(c)
-        else:
-            optimizedCircles.append(bestTransform(optimizedCircles[-1], c))
-
-    # start with the last entry to loop seamlessly
-    renderedCircles = [c.toManim() for c in optimizedCircles[-1]]
+    optimizedCircles = [normalizedCircles[startingGroup]]
+    remainingCircles = normalizedCircles[:startingGroup] + normalizedCircles[(startingGroup + 1):]
+    while remainingCircles:
+        nextIdx, nextPermutation = bestGroupAndTransform(optimizedCircles[-1], remainingCircles)
+        remainingCircles.pop(nextIdx)
+        optimizedCircles.append(nextPermutation)
+    
+    # Begin with first, move first to end for looping
+    renderedCircles = [c.toManim() for c in optimizedCircles[0]]
+    optimizedCircles.append(optimizedCircles.pop(0))
 
     drawCircleGroups = []
     for group in optimizedCircles:
@@ -172,4 +186,5 @@ class N4_connected(manim.Scene):
 
 class N4_all(manim.Scene):
     def construct(self):
-        constructScene(self, "res/n4-all.csv", 4)
+        # 163 is my favourite
+        constructScene(self, "res/n4-all.csv", 4, 163)
